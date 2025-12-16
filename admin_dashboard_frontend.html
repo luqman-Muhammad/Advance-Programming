@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luqman Courier Service Management - Admin Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connected .status-dot {
+            background: #28a745;
+        }
+
+        .disconnected .status-dot {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .tab:hover {
+            transform: translateY(-2px);
+        }
+
+        .content-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-width: 300px;
+            animation: slideIn 0.3s;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .notification.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .notification.info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btns button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .package-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .package-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .package-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .package-item.selected {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .package-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+
+        .package-info {
+            flex: 1;
+        }
+
+        .package-info strong {
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .package-info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .selected-count {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+
+        .assign-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .assign-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .assign-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🚚 Luqman Courier Service - Admin Dashboard</h1>
+                <p style="color: #666; margin-top: 5px;">Real-time Management System</p>
+            </div>
+            <div id="connectionStatus" class="connection-status disconnected">
+                <div class="status-dot"></div>
+                <span>Disconnected</span>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Packages</h3>
+                <div class="value" id="totalPackages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Pending</h3>
+                <div class="value" id="pendingPackages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>In Transit</h3>
+                <div class="value" id="inTransitPackages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Delivered</h3>
+                <div class="value" id="deliveredPackages">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Drivers</h3>
+                <div class="value" id="totalDrivers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Available Drivers</h3>
+                <div class="value" id="availableDrivers">0</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showSection('drivers')">👨‍✈️ Drivers</button>
+            <button class="tab" onclick="showSection('packages')">📦 Packages</button>
+            <button class="tab" onclick="showSection('assign')">🔗 Assign Packages</button>
+        </div>
+
+        <div class="content-card">
+            <div id="drivers" class="section active">
+                <h2 style="margin-bottom: 20px;">Driver Management</h2>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+                    <div>
+                        <h3>Add New Driver</h3>
+                        <form id="addDriverForm" style="margin-top: 20px;">
+                            <div class="form-group">
+                                <label>Driver ID</label>
+                                <input type="text" id="driverId" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" id="driverName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" id="driverPhone" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Vehicle Type</label>
+                                <select id="vehicleType" required>
+                                    <option value="">Select...</option>
+                                    <option value="bike">Bike</option>
+                                    <option value="van">Van</option>
+                                    <option value="truck">Truck</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Driver</button>
+                        </form>
+                    </div>
+                    
+                    <div>
+                        <h3>All Drivers</h3>
+                        <table id="driversTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Vehicle</th>
+                                    <th>Status</th>
+                                    <th>Deliveries</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driversTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: #999;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="packages" class="section">
+                <h2 style="margin-bottom: 20px;">Package Management</h2>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+                    <div>
+                        <h3>Create New Package</h3>
+                        <form id="addPackageForm" style="margin-top: 20px;">
+                            <div class="form-group">
+                                <label>Package ID</label>
+                                <input type="text" id="packageId" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Sender Name</label>
+                                <input type="text" id="senderName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Sender Address</label>
+                                <input type="text" id="senderAddress" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Recipient Name</label>
+                                <input type="text" id="recipientName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Recipient Address</label>
+                                <input type="text" id="recipientAddress" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Weight (kg)</label>
+                                <input type="number" step="0.01" id="packageWeight" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create Package</button>
+                        </form>
+                    </div>
+                    
+                    <div>
+                        <h3>All Packages</h3>
+                        <table id="packagesTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Recipient</th>
+                                    <th>Weight</th>
+                                    <th>Status</th>
+                                    <th>Driver</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="packagesTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: #999;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="assign" class="section">
+                <h2 style="margin-bottom: 20px;">📦 Assign Multiple Packages to Driver</h2>
+                
+                <div class="assign-layout">
+                    <div class="assign-section">
+                        <h3>Step 1: Select Packages (Pending Only)</h3>
+                        <div class="selected-count" id="selectedCount">0 packages selected</div>
+                        <div class="package-list" id="packageList">
+                            <p style="text-align: center; color: #999; padding: 20px;">Loading packages...</p>
+                        </div>
+                    </div>
+
+                    <div class="assign-section">
+                        <h3>Step 2: Select Driver</h3>
+                        <div class="form-group">
+                            <label>All Drivers (✅ Available | 🚚 Busy)</label>
+                            <select id="assignDriverId" required style="font-size: 16px; padding: 15px;">
+                                <option value="">Loading drivers...</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-top: 30px;">
+                            <button type="button" class="btn btn-primary" onclick="assignMultiplePackages()" style="width: 100%; font-size: 18px; padding: 15px;">
+                                🚀 Assign Selected Packages
+                            </button>
+                        </div>
+
+                        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <strong>📌 Instructions:</strong>
+                            <ul style="margin: 10px 0 0 20px; color: #856404;">
+                                <li>Check multiple packages from the left</li>
+                                <li>Select any driver (available or busy)</li>
+                                <li>Click "Assign" to assign all at once</li>
+                                <li>Packages will show as "In Transit" immediately</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5005/api';
+        const socket = io('http://localhost:5005');
+        let selectedPackages = new Set();
+
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+            showNotification('Connected to server', 'success');
+            loadInitialData();
+        });
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+            showNotification('Disconnected from server', 'error');
+        });
+
+        socket.on('update', (data) => {
+            console.log('Real-time update:', data);
+            
+            switch(data.type) {
+                case 'driver_added':
+                    showNotification(`New driver added: ${data.data.name}`, 'info');
+                    loadDrivers();
+                    loadStats();
+                    break;
+                case 'package_added':
+                    showNotification(`New package created: ${data.data.package_id}`, 'info');
+                    loadPackages();
+                    loadStats();
+                    break;
+                case 'package_assigned':
+                    showNotification(`Package ${data.data.package_id} assigned to driver ${data.data.driver_id}`, 'success');
+                    loadPackages();
+                    loadDrivers();
+                    loadStats();
+                    break;
+                case 'delivery_completed':
+                    showNotification(`Delivery completed: ${data.data.package_id} 🎉`, 'success');
+                    loadPackages();
+                    loadDrivers();
+                    loadStats();
+                    break;
+                case 'package_status_updated':
+                case 'driver_status_updated':
+                    loadPackages();
+                    loadDrivers();
+                    loadStats();
+                    break;
+            }
+        });
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.className = 'connection-status connected';
+                status.innerHTML = '<div class="status-dot"></div><span>Connected</span>';
+            } else {
+                status.className = 'connection-status disconnected';
+                status.innerHTML = '<div class="status-dot"></div><span>Disconnected</span>';
+            }
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById(section).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (section === 'assign') {
+                loadAssignOptions();
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `<strong>${message}</strong>`;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        async function loadInitialData() {
+            await loadStats();
+            await loadDrivers();
+            await loadPackages();
+        }
+
+        async function loadStats() {
+            try {
+                const [packageStats, driverStats] = await Promise.all([
+                    fetch(`${API_URL}/stats/packages`).then(r => r.json()),
+                    fetch(`${API_URL}/stats/drivers`).then(r => r.json())
+                ]);
+                
+                if (packageStats.status === 'success') {
+                    document.getElementById('totalPackages').textContent = packageStats.data.total;
+                    document.getElementById('pendingPackages').textContent = packageStats.data.pending;
+                    document.getElementById('inTransitPackages').textContent = packageStats.data.in_transit;
+                    document.getElementById('deliveredPackages').textContent = packageStats.data.delivered;
+                }
+                
+                if (driverStats.status === 'success') {
+                    document.getElementById('totalDrivers').textContent = driverStats.data.total_drivers;
+                    document.getElementById('availableDrivers').textContent = driverStats.data.available_drivers;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadDrivers() {
+            try {
+                const response = await fetch(`${API_URL}/drivers`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.getElementById('driversTableBody');
+                    tbody.innerHTML = data.data.map(driver => `
+                        <tr>
+                            <td>${driver.driver_id}</td>
+                            <td>${driver.name}</td>
+                            <td>${driver.phone}</td>
+                            <td>${driver.vehicle_type}</td>
+                            <td><span class="badge badge-${driver.status === 'available' ? 'success' : 'warning'}">${driver.status}</span></td>
+                            <td>${driver.total_deliveries}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+            }
+        }
+
+        async function loadPackages() {
+            try {
+                const response = await fetch(`${API_URL}/packages`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const tbody = document.getElementById('packagesTableBody');
+                    tbody.innerHTML = data.data.map(pkg => {
+                        const statusClass = {
+                            'pending': 'warning',
+                            'assigned': 'info',
+                            'in_transit': 'info',
+                            'delivered': 'success'
+                        }[pkg.status] || 'warning';
+                        
+                        return `
+                            <tr>
+                                <td>${pkg.package_id}</td>
+                                <td>${pkg.recipient_name}</td>
+                                <td>${pkg.weight} kg</td>
+                                <td><span class="badge badge-${statusClass}">${pkg.status}</span></td>
+                                <td>${pkg.assigned_driver || 'None'}</td>
+                                <td>
+                                    <div class="action-btns">
+                                        ${pkg.status !== 'delivered' ? `<button class="btn-success" onclick="completeDelivery('${pkg.package_id}')">Complete</button>` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading packages:', error);
+            }
+        }
+
+        async function loadAssignOptions() {
+            selectedPackages.clear();
+            updateSelectedCount();
+
+            try {
+                const [packagesRes, driversRes] = await Promise.all([
+                    fetch(`${API_URL}/packages`).then(r => r.json()),
+                    fetch(`${API_URL}/drivers`).then(r => r.json())
+                ]);
+                
+                const packageList = document.getElementById('packageList');
+                if (packagesRes.status === 'success') {
+                    const pending = packagesRes.data.filter(p => p.status === 'pending');
+                    
+                    if (pending.length === 0) {
+                        packageList.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">📭 No pending packages available</p>';
+                    } else {
+                        packageList.innerHTML = pending.map(p => `
+                            <div class="package-item" onclick="togglePackage('${p.package_id}', event)">
+                                <input type="checkbox" id="pkg-${p.package_id}" onclick="togglePackage('${p.package_id}', event)">
+                                <div class="package-info">
+                                    <strong>${p.package_id}</strong>
+                                    <p>📍 To: ${p.recipient_name} - ${p.recipient_address}</p>
+                                    <p>⚖️ Weight: ${p.weight} kg</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+                
+                const driverSelect = document.getElementById('assignDriverId');
+                if (driversRes.status === 'success') {
+                    // Show ALL drivers, not just available ones
+                    const allDrivers = driversRes.data;
+                    
+                    if (allDrivers.length === 0) {
+                        driverSelect.innerHTML = '<option value="">No drivers found</option>';
+                    } else {
+                        driverSelect.innerHTML = '<option value="">Select a driver...</option>' +
+                            allDrivers.map(d => {
+                                const statusLabel = d.status === 'available' ? '✅' : '🚚';
+                                return `<option value="${d.driver_id}">${statusLabel} ${d.name} - ${d.vehicle_type} (${d.driver_id})</option>`;
+                            }).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading assign options:', error);
+            }
+        }
+
+        function togglePackage(packageId, event) {
+            event.stopPropagation();
+            
+            const checkbox = document.getElementById(`pkg-${packageId}`);
+            const item = checkbox.closest('.package-item');
+            
+            if (selectedPackages.has(packageId)) {
+                selectedPackages.delete(packageId);
+                checkbox.checked = false;
+                item.classList.remove('selected');
+            } else {
+                selectedPackages.add(packageId);
+                checkbox.checked = true;
+                item.classList.add('selected');
+            }
+            
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedPackages.size;
+            const countEl = document.getElementById('selectedCount');
+            countEl.textContent = `${count} package${count !== 1 ? 's' : ''} selected`;
+        }
+
+        async function assignMultiplePackages() {
+            const driverId = document.getElementById('assignDriverId').value;
+            
+            if (!driverId) {
+                showNotification('Please select a driver!', 'error');
+                return;
+            }
+            
+            if (selectedPackages.size === 0) {
+                showNotification('Please select at least one package!', 'error');
+                return;
+            }
+
+            const packageArray = Array.from(selectedPackages);
+            const driverName = document.getElementById('assignDriverId').selectedOptions[0].text;
+            
+            if (!confirm(`Assign ${packageArray.length} package(s) to ${driverName}?`)) {
+                return;
+            }
+
+            try {
+                showNotification(`Assigning ${packageArray.length} packages...`, 'info');
+                
+                const results = await Promise.all(
+                    packageArray.map(packageId => 
+                        fetch(`${API_URL}/packages/${packageId}/assign`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({driver_id: driverId})
+                        }).then(r => r.json())
+                    )
+                );
+                
+                const successful = results.filter(r => r.status === 'success').length;
+                const failed = results.length - successful;
+                
+                if (failed === 0) {
+                    showNotification(`✅ Successfully assigned ${successful} package(s)!`, 'success');
+                } else {
+                    showNotification(`⚠️ Assigned ${successful}, failed ${failed}`, 'error');
+                }
+                
+                // Force immediate reload of all data
+                selectedPackages.clear();
+                
+                // Reload everything immediately
+                await Promise.all([
+                    loadAssignOptions(),
+                    loadPackages(),
+                    loadDrivers(),
+                    loadStats()
+                ]);
+                
+            } catch (error) {
+                showNotification('❌ Error assigning packages', 'error');
+                console.error('Assignment error:', error);
+            }
+        }
+
+        async function completeDelivery(packageId) {
+            if (!confirm(`Mark package ${packageId} as delivered?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/packages/${packageId}/complete`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showNotification(`Package ${packageId} marked as delivered!`, 'success');
+                    await loadPackages();
+                    await loadStats();
+                } else {
+                    showNotification(data.message || 'Failed to complete delivery', 'error');
+                }
+            } catch (error) {
+                showNotification('Error completing delivery', 'error');
+                console.error('Complete delivery error:', error);
+            }
+        }
+
+        document.getElementById('addDriverForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const driver = {
+                driver_id: document.getElementById('driverId').value,
+                name: document.getElementById('driverName').value,
+                phone: document.getElementById('driverPhone').value,
+                vehicle_type: document.getElementById('vehicleType').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/drivers`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(driver)
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showNotification('Driver added successfully!', 'success');
+                    e.target.reset();
+                    await loadDrivers();
+                    await loadStats();
+                } else {
+                    showNotification(data.message || 'Failed to add driver', 'error');
+                }
+            } catch (error) {
+                showNotification('Error adding driver', 'error');
+                console.error('Add driver error:', error);
+            }
+        });
+
+        document.getElementById('addPackageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pkg = {
+                package_id: document.getElementById('packageId').value,
+                sender_name: document.getElementById('senderName').value,
+                sender_address: document.getElementById('senderAddress').value,
+                recipient_name: document.getElementById('recipientName').value,
+                recipient_address: document.getElementById('recipientAddress').value,
+                weight: parseFloat(document.getElementById('packageWeight').value)
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/packages`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(pkg)
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showNotification('Package created successfully!', 'success');
+                    e.target.reset();
+                    await loadPackages();
+                    await loadStats();
+                } else {
+                    showNotification(data.message || 'Failed to create package', 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating package', 'error');
+                console.error('Create package error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
