@@ -18,8 +18,8 @@
    Server will run on: http://localhost:5003     ##port 5000 or port 1234 can be used as well
 
 4. **Access Web Interfaces:**
-   - Admin Dashboard: Open `admin_dashboard.html` in browser
-   - Driver Dashboard: Open `driver_dashboard.html` in browser
+   - Admin Dashboard: Open `admin_dashboard_frontend.html` in browser
+   - Driver Dashboard: Open `driver_dashboard_frontend.html` in browser
 
 ## Testing
 
@@ -34,4 +34,5 @@ python tests/test_suite.py
 - `database/` - Database setup
 - `models/` - Data models
 - `services/` - Business logic
+
 - `tests/` - Unit tests
